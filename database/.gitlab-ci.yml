@@ -1,0 +1,62 @@
+---
+image: docker:stable
+
+services:
+   - docker:stable-dind
+
+stages:
+  - build
+  #-test
+  - release
+  - pages
+
+variables:
+  DOCKER_DRIVER: overlay2
+  IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+  IMAGE_TAG_HASH: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+  IMAGE_TAG_LATEST: $CI_REGISTRY_IMAGE:latest
+  # CI_DEBUG_TRACE: 1
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+
+build:
+  stage: build
+  script:
+    - docker build --pull -t $IMAGE_TAG_HASH .
+    - docker tag $IMAGE_TAG_HASH $IMAGE_TAG
+    #- docker push $IMAGE_TAG_HASH
+    - docker push $IMAGE_TAG
+
+# test:
+#   stage: test
+#   script:
+
+release:
+  stage: release
+  script:
+    - docker pull $IMAGE_TAG
+    - docker tag $IMAGE_TAG $IMAGE_TAG_LATEST
+    - docker push $IMAGE_TAG_LATEST
+  only:
+   - master
+
+
+pages:
+  image: alpine:latest
+  stage: pages
+  before_script: []
+  script:
+  - rm -rf public
+  - mkdir -p public
+  - mv schema/ea-doc-site/* public/
+  - cp -f public/index.htm public/index.html
+  # Pre-compress assets because we like to go faaaassst!
+  - find public -type f -regex '.*\.\(htm\|html\|txt\|text\|js\|css\)$'
+    -exec gzip -f -k '{}' \;
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
+  - production

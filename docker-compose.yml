@@ -1,0 +1,53 @@
+---
+version: '3.0'
+
+
+networks:
+  frontend:
+  backend:
+
+
+services:
+
+  front:
+    ports:
+      - "4200:4200"
+      - "49153:49153"
+    networks: 
+      - frontend
+    build: 
+      context: ./ng-frontend
+      dockerfile: Dockerfile
+    env_file: 
+      - ./ng-frontend/.env
+    depends_on:
+      - back
+
+  back:
+    ports:
+      - "3000:3000"
+    networks:
+      - frontend
+      - backend
+    depends_on:
+      - database
+    build: 
+      context: ./node-api
+      dockerfile: Dockerfile
+    env_file:
+      - ./node-api/.env
+    environment:
+      DB_PASSWORD:
+ 
+  database:
+    ports:
+      - "1433:1433"
+    build: 
+      context: ./database
+      dockerfile: Dockerfile
+    networks:
+      - backend
+      - frontend
+    environment:
+      DB_PASSWORD:
+      SA_PASSWORD:
